@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getStore } from '@netlify/blobs';
 
 export async function GET(request, { params }) {
-  const filename = params.filename;
+  const { filename } = await params;
 
   try {
     const store = getStore("photos");
