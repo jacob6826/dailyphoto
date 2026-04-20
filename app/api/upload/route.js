@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { addPhotoToPool } from '@/lib/state';
+import { addPhotoToPool, addPhotosToPool } from '@/lib/state';
 import { getStore } from '@netlify/blobs';
 
 export async function POST(request) {
