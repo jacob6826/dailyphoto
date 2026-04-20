@@ -7,8 +7,11 @@ const compressImage = async (file) => {
   return new Promise((resolve) => {
     // Only compress images that are dangerously large (e.g., >3MB)
     // 3000000 bytes = ~3MB
+    const timeout = setTimeout(() => resolve(file), 4000);
+    const safeResolve = (val) => { clearTimeout(timeout); resolve(val); };
+
     if (!file.type.startsWith('image/') || file.size < 3000000) {
-      return resolve(file);
+      return safeResolve(file);
     }
 
     const reader = new FileReader();
@@ -17,46 +20,51 @@ const compressImage = async (file) => {
       const img = new Image();
       
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 3000;
-        const MAX_HEIGHT = 3000;
-        let width = img.width;
-        let height = img.height;
+        try {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 3000;
+          const MAX_HEIGHT = 3000;
+          let width = img.width;
+          let height = img.height;
 
-        if (width > MAX_WIDTH || height > MAX_HEIGHT) {
-          const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
-          width = width * ratio;
-          height = height * ratio;
+          if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+            const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
+            width = width * ratio;
+            height = height * ratio;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Convert the canvas drawing into an optimized 85% JPEG blob
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const newName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+                const compressedFile = new File([blob], newName, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                safeResolve(compressedFile);
+              } else {
+                safeResolve(file); 
+              }
+            },
+            'image/jpeg',
+            0.85
+          );
+        } catch (e) {
+          console.error("Canvas Compression Error:", e);
+          safeResolve(file);
         }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Convert the canvas drawing into an optimized 85% JPEG blob
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const newName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
-              const compressedFile = new File([blob], newName, {
-                type: 'image/jpeg',
-                lastModified: Date.now(),
-              });
-              resolve(compressedFile);
-            } else {
-              resolve(file); 
-            }
-          },
-          'image/jpeg',
-          0.85
-        );
       };
       
-      img.onerror = () => resolve(file); // fallback on load error
+      img.onerror = () => safeResolve(file); // fallback on load error
       img.src = event.target.result; // SET LAST
     };
-    reader.onerror = () => resolve(file); // fallback on read error
+    reader.onerror = () => safeResolve(file); // fallback on read error
   });
 };
 
