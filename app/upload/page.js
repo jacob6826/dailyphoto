@@ -8,19 +8,24 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [previewSrc, setPreviewSrc] = useState(null);
+  const [fileCount, setFileCount] = useState(0);
   const fileInputRef = useRef(null);
 
-  const processFile = async (file) => {
-    if (!file) return;
+  const processFiles = async (fileList) => {
+    if (!fileList || fileList.length === 0) return;
 
-    // Set preview
-    const objectUrl = URL.createObjectURL(file);
+    const files = Array.from(fileList);
+    setFileCount(files.length);
+
+    // Set preview to the first file
+    const objectUrl = URL.createObjectURL(files[0]);
     setPreviewSrc(objectUrl);
     setLoading(true);
     setStatus('');
 
     const formData = new FormData();
-    formData.append('photo', file);
+    // Append all selected files to 'photos'
+    files.forEach(f => formData.append('photos', f));
 
     try {
       // Add artificial delay for the smooth spinning loader effect
@@ -44,8 +49,7 @@ export default function UploadPage() {
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    processFile(file);
+    processFiles(e.target.files);
   };
 
   const handleDrag = (e) => {
@@ -64,15 +68,15 @@ export default function UploadPage() {
     setDragActive(false);
     if (loading || status === 'success') return;
     
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFiles(e.dataTransfer.files);
     }
   };
 
   return (
     <main className="upload-container" onDragEnter={handleDrag}>
-      <h1>Add a Photo</h1>
-      <p>Upload a new image to the daily rotation pool.</p>
+      <h1>Add Photos</h1>
+      <p>Upload new images to the daily rotation pool. Bulk uploads supported.</p>
       
       {status === 'success' ? (
         <div className="success-state">
@@ -82,17 +86,18 @@ export default function UploadPage() {
             </svg>
           </div>
           <h2>Upload Complete!</h2>
-          <p style={{ margin: '10px 0 0 0' }}>Your photo has been added to the pool.</p>
+          <p style={{ margin: '10px 0 0 0' }}>{fileCount} photo{fileCount !== 1 ? 's have' : ' has'} been added to the pool.</p>
           <button 
             className="btn" 
             style={{ marginTop: '30px' }}
             onClick={() => {
               setStatus('');
               setPreviewSrc(null);
+              setFileCount(0);
               if (fileInputRef.current) fileInputRef.current.value = '';
             }}
           >
-            Upload Another
+            Upload More
           </button>
         </div>
       ) : (
@@ -108,8 +113,13 @@ export default function UploadPage() {
             <div className="preview-container">
               <Image src={previewSrc} alt="Preview" fill className="preview-image" />
               {loading && (
-                <div className="uploading-overlay">
+                <div className="uploading-overlay" style={{ flexDirection: 'column' }}>
                   <div className="spinner"></div>
+                  {fileCount > 1 && (
+                    <div style={{ marginTop: '15px', color: 'white', fontWeight: 'bold' }}>
+                      Uploading {fileCount} photos...
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -120,7 +130,7 @@ export default function UploadPage() {
                 <polyline points="17 8 12 3 7 8"></polyline>
                 <line x1="12" y1="3" x2="12" y2="15"></line>
               </svg>
-              <span>{dragActive ? 'Drop image here' : 'Click or drag image to upload'}</span>
+              <span>{dragActive ? 'Drop images here' : 'Click or drag images to upload'}</span>
             </>
           )}
         </div>
@@ -129,6 +139,7 @@ export default function UploadPage() {
       <input 
         type="file" 
         accept="image/*" 
+        multiple
         className="file-input" 
         ref={fileInputRef}
         onChange={handleFileChange}
@@ -137,7 +148,7 @@ export default function UploadPage() {
 
       {status === 'error' && (
         <div className="status error">
-          Error uploading file. Please try again.
+          Error uploading files. Please try again.
         </div>
       )}
 
