@@ -125,7 +125,7 @@ export default function UploadPage() {
       }
       
       if (failedFiles.length > 0) {
-        setStatus(successfulCount === 0 ? 'error' : `partial:${failedFiles.join(', ')}`);
+        setStatus(`error:${failedFiles.join(', ')}`);
       } else {
         setStatus('success');
       }
@@ -170,14 +170,14 @@ export default function UploadPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const isSuccessState = status === 'success' || status.startsWith('partial:');
+  const isEndState = status === 'success' || status.startsWith('partial:') || status.startsWith('error:');
 
   return (
     <main className="upload-container" onDragEnter={handleDrag}>
       <h1>Add Photos</h1>
       <p>Upload new images to the daily rotation pool. Bulk uploads supported.</p>
       
-      {isSuccessState ? (
+      {isEndState ? (
         <div className="success-state">
           {status === 'success' ? (
             <div className="success-icon">
@@ -194,13 +194,17 @@ export default function UploadPage() {
             </div>
           )}
           
-          <h2>{status === 'success' ? 'Upload Complete!' : 'Upload Partial Success'}</h2>
-          <p style={{ margin: '10px 0 0 0' }}>{uploadedCount} photo{uploadedCount !== 1 ? 's have' : ' has'} been added to the pool.</p>
+          <h2>{status === 'success' ? 'Upload Complete!' : status.startsWith('partial:') ? 'Upload Partial Success' : 'Upload Failed'}</h2>
           
-          {status.startsWith('partial:') && (
-            <p style={{ color: '#fca5a5', marginTop: '10px', fontSize: '14px', maxWidth: '300px' }}>
-              Failed: {status.split(':')[1]}
-            </p>
+          {status !== 'error' && !status.startsWith('error:') && (
+            <p style={{ margin: '10px 0 0 0' }}>{uploadedCount} photo{uploadedCount !== 1 ? 's have' : ' has'} been added to the pool.</p>
+          )}
+          
+          {(status.startsWith('partial:') || status.startsWith('error:')) && (
+            <div style={{ color: '#fca5a5', marginTop: '15px', fontSize: '14px', maxWidth: '400px', textAlign: 'left', background: 'rgba(255,0,0,0.1)', padding: '10px', borderRadius: '8px' }}>
+              <strong>Error Details:</strong>
+              <p style={{ marginTop: '5px' }}>{status.split(':')[1] || status}</p>
+            </div>
           )}
 
           <button 
@@ -208,7 +212,7 @@ export default function UploadPage() {
             style={{ marginTop: '30px' }}
             onClick={resetState}
           >
-            Upload More
+            Try Again
           </button>
         </div>
       ) : (
@@ -256,12 +260,6 @@ export default function UploadPage() {
         onChange={handleFileChange}
         disabled={loading}
       />
-
-      {status === 'error' && (
-        <div className="status error">
-          Error uploading files. Please try again.
-        </div>
-      )}
 
       <div>
         <a href="/" className="back-link">Back to Gallery</a>
