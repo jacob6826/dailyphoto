@@ -111,12 +111,16 @@ export default function UploadPage() {
             body: formData,
           });
 
-          if (!res.ok) throw new Error('failed');
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`[${res.status}] ${errText.slice(0, 50)}`);
+          }
           
           successfulCount++;
           setUploadedCount(successfulCount);
         } catch (e) {
-          failedFiles.push(files[i].name);
+          console.log('Upload error message:', e.message);
+          failedFiles.push(`${files[i].name} - ${e.message}`);
         }
       }
       
