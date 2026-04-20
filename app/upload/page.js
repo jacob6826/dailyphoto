@@ -15,7 +15,9 @@ const compressImage = async (file) => {
     
     const safeResolve = (val) => { clearTimeout(timeout); resolve(val); };
 
-    if (!file.type.startsWith('image/') || file.size < 3000000) {
+    const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|heic|heif)$/i.test(file.name);
+    
+    if (!isImage || file.size < 3000000) {
       return safeResolve(file);
     }
 
@@ -106,6 +108,11 @@ export default function UploadPage() {
         formData.append('photos', optimizedFile);
 
         try {
+          // Absolute hard limit for Netlify Serverless payloads to avoid raw 500 crashes
+          if (optimizedFile.size > 4400000) {
+            throw new Error(`File compressed to ${(optimizedFile.size / 1000000).toFixed(2)}MB which still exceeds Netlify's absolute 4.4MB limit. Please crop or shrink it manually.`);
+          }
+
           const res = await fetch('/api/upload', {
             method: 'POST',
             body: formData,
