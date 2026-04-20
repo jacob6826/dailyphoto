@@ -29,8 +29,8 @@ const compressImage = async (file) => {
       img.onload = () => {
         try {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 3000;
-          const MAX_HEIGHT = 3000;
+          const MAX_WIDTH = 1920;
+          const MAX_HEIGHT = 1920;
           let width = img.width;
           let height = img.height;
 
@@ -60,7 +60,7 @@ const compressImage = async (file) => {
               }
             },
             'image/jpeg',
-            0.85
+            0.80
           );
         } catch (e) {
           console.error("Canvas Compression Error:", e);
