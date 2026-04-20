@@ -9,6 +9,7 @@ export default function UploadPage() {
   const [dragActive, setDragActive] = useState(false);
   const [previewSrc, setPreviewSrc] = useState(null);
   const [fileCount, setFileCount] = useState(0);
+  const [uploadedCount, setUploadedCount] = useState(0);
   const fileInputRef = useRef(null);
 
   const processFiles = async (fileList) => {
@@ -16,6 +17,7 @@ export default function UploadPage() {
 
     const files = Array.from(fileList);
     setFileCount(files.length);
+    setUploadedCount(0);
 
     // Set preview to the first file
     const objectUrl = URL.createObjectURL(files[0]);
@@ -23,22 +25,23 @@ export default function UploadPage() {
     setLoading(true);
     setStatus('');
 
-    const formData = new FormData();
-    // Append all selected files to 'photos'
-    files.forEach(f => formData.append('photos', f));
-
     try {
-      // Add artificial delay for the smooth spinning loader effect
-      await new Promise(r => setTimeout(r, 600));
+      // Process sequentially to avoid Serverless Payload Limits (HTTP 413)
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('photos', file);
 
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
 
-      if (!res.ok) throw new Error('Upload failed');
+        if (!res.ok) throw new Error('Upload failed for ' + file.name);
+        
+        setUploadedCount(i + 1);
+      }
       
-      const data = await res.json();
       setStatus('success');
     } catch (err) {
       console.error(err);
@@ -117,7 +120,7 @@ export default function UploadPage() {
                   <div className="spinner"></div>
                   {fileCount > 1 && (
                     <div style={{ marginTop: '15px', color: 'white', fontWeight: 'bold' }}>
-                      Uploading {fileCount} photos...
+                      Uploading {Math.min(uploadedCount + 1, fileCount)} of {fileCount} photos...
                     </div>
                   )}
                 </div>
