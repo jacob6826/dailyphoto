@@ -11,7 +11,10 @@ export default async function Home() {
       <main className="empty-state">
         <h1>Welcome to Daily Photo</h1>
         <p style={{ color: '#94a3b8', marginBottom: '20px' }}>The pool is empty. Upload some photos to get started!</p>
-        <a href="/upload" className="btn">Go to Upload</a>
+        <div>
+          <a href="/upload" className="btn">Add Photos</a>
+          <a href="/manage" className="btn outline" style={{ marginLeft: '15px' }}>File Manager</a>
+        </div>
       </main>
     );
   }
