@@ -15,7 +15,7 @@ const compressImage = async (file) => {
     reader.readAsDataURL(file);
     reader.onload = (event) => {
       const img = new Image();
-      img.src = event.target.result;
+      
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const MAX_WIDTH = 3000;
@@ -38,7 +38,6 @@ const compressImage = async (file) => {
         canvas.toBlob(
           (blob) => {
             if (blob) {
-              // Ensure the extension matches the new mime type 
               const newName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
               const compressedFile = new File([blob], newName, {
                 type: 'image/jpeg',
@@ -46,14 +45,16 @@ const compressImage = async (file) => {
               });
               resolve(compressedFile);
             } else {
-              resolve(file); // fallback if blob generation fails
+              resolve(file); 
             }
           },
           'image/jpeg',
           0.85
         );
       };
+      
       img.onerror = () => resolve(file); // fallback on load error
+      img.src = event.target.result; // SET LAST
     };
     reader.onerror = () => resolve(file); // fallback on read error
   });
