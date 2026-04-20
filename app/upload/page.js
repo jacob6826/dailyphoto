@@ -97,7 +97,23 @@ export default function UploadPage() {
       let successfulCount = 0;
 
       for (let i = 0; i < files.length; i++) {
-        let optimizedFile = await compressImage(files[i]);
+        let currentFile = files[i];
+        
+        // Massive safeguard: Apple AirDrop famously strips the MIME type and falsely renames pure HEIC binaries to .JPG.
+        // Javascript Canvas engines violently crash on "fake" JPGs. We run it securely through a native HEIC decoder first!
+        if (currentFile.size > 2000000) {
+          try {
+            const heic2any = (await import('heic2any')).default;
+            const convertedBlob = await heic2any({ blob: currentFile, toType: "image/jpeg" });
+            const finalBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+            console.log("Successfully decoded deceptive HEIC binary natively!");
+            currentFile = new File([finalBlob], currentFile.name, { type: 'image/jpeg' });
+          } catch(e) {
+            // Decider strictly rejected it. It is a genuine JPEG/PNG structure natively!
+          }
+        }
+
+        let optimizedFile = await compressImage(currentFile);
         
         let attempts = 0;
         while (optimizedFile.size > 4400000 && attempts < 2) {
@@ -129,7 +145,7 @@ export default function UploadPage() {
           setUploadedCount(successfulCount);
         } catch (e) {
           console.log('Upload error message:', e.message);
-          failedFiles.push(`${files[i].name} - ${e.message}`);
+          failedFiles.push(`${currentFile.name} - ${e.message}`);
         }
       }
       
@@ -269,7 +285,7 @@ export default function UploadPage() {
         onChange={handleFileChange}
         disabled={loading}
       />
-
+      
       <div>
         <a href="/" className="back-link">Back to Gallery</a>
       </div>
