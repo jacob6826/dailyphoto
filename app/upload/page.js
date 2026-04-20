@@ -7,7 +7,12 @@ const compressImage = async (file) => {
   return new Promise((resolve) => {
     // Only compress images that are dangerously large (e.g., >3MB)
     // 3000000 bytes = ~3MB
-    const timeout = setTimeout(() => resolve(file), 4000);
+    // Failsafe is extremely generous (20s) because massive ~24MP JPEGs can take 6-10s to resize securely on canvas
+    const timeout = setTimeout(() => {
+      console.warn("Compression timed out manually. Continuing with original file.");
+      resolve(file);
+    }, 20000);
+    
     const safeResolve = (val) => { clearTimeout(timeout); resolve(val); };
 
     if (!file.type.startsWith('image/') || file.size < 3000000) {
