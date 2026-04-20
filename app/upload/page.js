@@ -3,10 +3,8 @@
 import { useState, useRef } from 'react';
 import Image from 'next/image';
 
-const compressImage = async (file) => {
+const compressImage = async (file, maxWidth = 1920, quality = 0.80) => {
   return new Promise((resolve) => {
-    // Only compress images that are dangerously large (e.g., >3MB)
-    // 3000000 bytes = ~3MB
     // Failsafe is extremely generous (20s) because massive ~24MP JPEGs can take 6-10s to resize securely on canvas
     const timeout = setTimeout(() => {
       console.warn("Compression timed out manually. Continuing with original file.");
@@ -29,13 +27,11 @@ const compressImage = async (file) => {
       img.onload = () => {
         try {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 1920;
-          const MAX_HEIGHT = 1920;
           let width = img.width;
           let height = img.height;
 
-          if (width > MAX_WIDTH || height > MAX_HEIGHT) {
-            const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
+          if (width > maxWidth || height > maxWidth) {
+            const ratio = Math.min(maxWidth / width, maxWidth / height);
             width = width * ratio;
             height = height * ratio;
           }
@@ -45,7 +41,7 @@ const compressImage = async (file) => {
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
 
-          // Convert the canvas drawing into an optimized 85% JPEG blob
+          // Convert the canvas drawing into an optimized JPEG blob
           canvas.toBlob(
             (blob) => {
               if (blob) {
@@ -60,7 +56,7 @@ const compressImage = async (file) => {
               }
             },
             'image/jpeg',
-            0.80
+            quality
           );
         } catch (e) {
           console.error("Canvas Compression Error:", e);
@@ -101,8 +97,14 @@ export default function UploadPage() {
       let successfulCount = 0;
 
       for (let i = 0; i < files.length; i++) {
-        // Compress the image before generating FormData
-        const optimizedFile = await compressImage(files[i]);
+        let optimizedFile = await compressImage(files[i]);
+        
+        let attempts = 0;
+        while (optimizedFile.size > 4400000 && attempts < 2) {
+           console.log(`File still too large (${optimizedFile.size}). Re-compressing...`);
+           optimizedFile = await compressImage(optimizedFile, 1080, 0.65);
+           attempts++;
+        }
         
         const formData = new FormData();
         formData.append('photos', optimizedFile);
