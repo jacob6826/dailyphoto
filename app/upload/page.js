@@ -3,6 +3,62 @@
 import { useState, useRef } from 'react';
 import Image from 'next/image';
 
+const compressImage = async (file) => {
+  return new Promise((resolve) => {
+    // Only compress images that are dangerously large (e.g., >3MB)
+    // 3000000 bytes = ~3MB
+    if (!file.type.startsWith('image/') || file.size < 3000000) {
+      return resolve(file);
+    }
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 3000;
+        const MAX_HEIGHT = 3000;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+          const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
+          width = width * ratio;
+          height = height * ratio;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert the canvas drawing into an optimized 85% JPEG blob
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              // Ensure the extension matches the new mime type 
+              const newName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+              const compressedFile = new File([blob], newName, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              resolve(file); // fallback if blob generation fails
+            }
+          },
+          'image/jpeg',
+          0.85
+        );
+      };
+      img.onerror = () => resolve(file); // fallback on load error
+    };
+    reader.onerror = () => resolve(file); // fallback on read error
+  });
+};
+
 export default function UploadPage() {
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,9 +85,11 @@ export default function UploadPage() {
       let successfulCount = 0;
 
       for (let i = 0; i < files.length; i++) {
-        const file = files[i];
+        // Compress the image before generating FormData
+        const optimizedFile = await compressImage(files[i]);
+        
         const formData = new FormData();
-        formData.append('photos', file);
+        formData.append('photos', optimizedFile);
 
         try {
           const res = await fetch('/api/upload', {
@@ -44,7 +102,7 @@ export default function UploadPage() {
           successfulCount++;
           setUploadedCount(successfulCount);
         } catch (e) {
-          failedFiles.push(file.name);
+          failedFiles.push(files[i].name);
         }
       }
       
