@@ -19,30 +19,40 @@ export default function UploadPage() {
     setFileCount(files.length);
     setUploadedCount(0);
 
-    // Set preview to the first file
     const objectUrl = URL.createObjectURL(files[0]);
     setPreviewSrc(objectUrl);
     setLoading(true);
     setStatus('');
 
     try {
-      // Process sequentially to avoid Serverless Payload Limits (HTTP 413)
+      const failedFiles = [];
+      let successfulCount = 0;
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const formData = new FormData();
         formData.append('photos', file);
 
-        const res = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
+        try {
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          });
 
-        if (!res.ok) throw new Error('Upload failed for ' + file.name);
-        
-        setUploadedCount(i + 1);
+          if (!res.ok) throw new Error('failed');
+          
+          successfulCount++;
+          setUploadedCount(successfulCount);
+        } catch (e) {
+          failedFiles.push(file.name);
+        }
       }
       
-      setStatus('success');
+      if (failedFiles.length > 0) {
+        setStatus(successfulCount === 0 ? 'error' : `partial:${failedFiles.join(', ')}`);
+      } else {
+        setStatus('success');
+      }
     } catch (err) {
       console.error(err);
       setStatus('error');
@@ -59,7 +69,7 @@ export default function UploadPage() {
     e.preventDefault();
     e.stopPropagation();
     if (e.type === "dragenter" || e.type === "dragover") {
-      if (!loading && status !== 'success') setDragActive(true);
+      if (!loading && status !== 'success' && !status.startsWith('partial:')) setDragActive(true);
     } else if (e.type === "dragleave") {
       setDragActive(false);
     }
@@ -69,36 +79,58 @@ export default function UploadPage() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (loading || status === 'success') return;
+    if (loading || status === 'success' || status.startsWith('partial:')) return;
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       processFiles(e.dataTransfer.files);
     }
   };
 
+  const resetState = () => {
+    setStatus('');
+    setPreviewSrc(null);
+    setFileCount(0);
+    setUploadedCount(0);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const isSuccessState = status === 'success' || status.startsWith('partial:');
+
   return (
     <main className="upload-container" onDragEnter={handleDrag}>
       <h1>Add Photos</h1>
       <p>Upload new images to the daily rotation pool. Bulk uploads supported.</p>
       
-      {status === 'success' ? (
+      {isSuccessState ? (
         <div className="success-state">
-          <div className="success-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </div>
-          <h2>Upload Complete!</h2>
-          <p style={{ margin: '10px 0 0 0' }}>{fileCount} photo{fileCount !== 1 ? 's have' : ' has'} been added to the pool.</p>
+          {status === 'success' ? (
+            <div className="success-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+          ) : (
+            <div className="success-icon" style={{ borderColor: '#fca5a5', color: '#fca5a5' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </div>
+          )}
+          
+          <h2>{status === 'success' ? 'Upload Complete!' : 'Upload Partial Success'}</h2>
+          <p style={{ margin: '10px 0 0 0' }}>{uploadedCount} photo{uploadedCount !== 1 ? 's have' : ' has'} been added to the pool.</p>
+          
+          {status.startsWith('partial:') && (
+            <p style={{ color: '#fca5a5', marginTop: '10px', fontSize: '14px', maxWidth: '300px' }}>
+              Failed: {status.split(':')[1]}
+            </p>
+          )}
+
           <button 
             className="btn" 
             style={{ marginTop: '30px' }}
-            onClick={() => {
-              setStatus('');
-              setPreviewSrc(null);
-              setFileCount(0);
-              if (fileInputRef.current) fileInputRef.current.value = '';
-            }}
+            onClick={resetState}
           >
             Upload More
           </button>
